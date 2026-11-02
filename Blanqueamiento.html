@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cronómetro Adhesivo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: clinical instrument panel — a scrubbable day-0→28 timeline drives a live enamel/adhesive cross-section, then mechanism → evidence → protocol. */
+:root{
+  --bg:#f3f6fa; --surface:#ffffff; --ink:#132238; --muted:#56657a; --line:#d6dee8;
+  --navy:#1b2c47; --cure:#2f6fe4; --cure-soft:#e3ecfd;
+  --enamel:#efe6d2; --enamel-2:#e2d5b8; --resin:#bcd2fa;
+  --ox:#e2513b; --ok:#1f9d6a; --warn:#d9890f; --crit:#d6453a;
+  --ok-soft:#e1f4ec; --warn-soft:#fbf0dc; --crit-soft:#fbe5e2;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1522; --surface:#162133; --ink:#e7eef8; --muted:#9fb0c6; --line:#2a3a52;
+  --navy:#cfdcf0; --cure:#6f9dff; --cure-soft:#1d2d4c;
+  --enamel:#5c5443; --enamel-2:#4a4336; --resin:#34507f;
+  --ox:#ff7a63; --ok:#3cc48d; --warn:#f0a83a; --crit:#ff6b5f;
+  --ok-soft:#173528; --warn-soft:#3a2c14; --crit-soft:#3d1c1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1522; --surface:#162133; --ink:#e7eef8; --muted:#9fb0c6; --line:#2a3a52;
+  --navy:#cfdcf0; --cure:#6f9dff; --cure-soft:#1d2d4c;
+  --enamel:#5c5443; --enamel-2:#4a4336; --resin:#34507f;
+  --ox:#ff7a63; --ok:#3cc48d; --warn:#f0a83a; --crit:#ff6b5f;
+  --ok-soft:#173528; --warn-soft:#3a2c14; --crit-soft:#3d1c1a; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.55}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px;display:grid;gap:40px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:clamp(2.1rem,5vw,3.4rem);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(1.5rem,3vw,2rem);font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.12rem;font-weight:700}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--cure);font-weight:700}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* header */
+header{display:grid;gap:14px}
+.head-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.tag{font-family:var(--f-mono);font-size:.72rem;font-weight:700;letter-spacing:.06em;padding:5px 10px;border-radius:999px;background:var(--navy);color:var(--bg)}
+.lede{max-width:64ch;font-size:1.08rem;color:var(--muted)}
+.lede strong{color:var(--ink)}
+
+/* instrument */
+.instrument{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:0;background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+@media (max-width:860px){.instrument{grid-template-columns:1fr}}
+.controls{padding:22px;display:grid;gap:18px;align-content:start;border-right:1px solid var(--line);background:linear-gradient(180deg,var(--cure-soft),transparent 70%)}
+@media (max-width:860px){.controls{border-right:0;border-bottom:1px solid var(--line)}}
+.field{display:grid;gap:6px}
+.field>label,.field>.lbl{font-weight:700;font-size:.92rem}
+input[type=date]{font:inherit;font-family:var(--f-mono);font-size:.95rem;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{display:grid;gap:1px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--surface);font-size:.9rem;line-height:1.25}
+.seg label small{color:var(--muted);font-size:.78rem}
+.seg input:checked+label{border-color:var(--cure);box-shadow:inset 0 0 0 1px var(--cure);background:var(--cure-soft)}
+.seg input:focus-visible+label{outline:2px solid var(--cure);outline-offset:2px}
+.switch{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:.92rem;line-height:1.3}
+.switch input{width:20px;height:20px;accent-color:var(--cure);margin:1px 0 0;flex:none}
+.note{font-size:.8rem;color:var(--muted)}
+
+.readout{padding:22px;display:grid;gap:18px;min-width:0}
+.status-row{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end;justify-content:space-between}
+.daybig{display:flex;align-items:baseline;gap:10px}
+.daybig .n{font-family:var(--f-display);font-weight:800;font-size:clamp(3rem,8vw,4.6rem);line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.daybig .u{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;font-weight:700;font-size:.92rem}
+.chip::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
+.chip.crit{color:var(--crit);background:var(--crit-soft)}
+.chip.warn{color:var(--warn);background:var(--warn-soft)}
+.chip.ok{color:var(--ok);background:var(--ok-soft)}
+.chip.mid{color:var(--cure);background:var(--cure-soft)}
+
+.scrub{display:grid;gap:6px}
+.track-wrap{position:relative;padding-top:4px}
+.bands{display:flex;height:10px;border-radius:6px;overflow:hidden}
+.bands span{display:block;height:100%}
+input[type=range]{width:100%;margin:6px 0 0;accent-color:var(--cure);height:28px}
+.ticks{position:relative;height:18px;font-family:var(--f-mono);font-size:.7rem;color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.playrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button{font:inherit;font-weight:700;font-size:.9rem;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button.primary{background:var(--cure);border-color:var(--cure);color:#fff}
+button:focus-visible{outline:2px solid var(--cure);outline-offset:2px}
+
+.stage{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+@media (max-width:640px){.stage{grid-template-columns:1fr}}
+.canvas-box{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+canvas{display:block;width:100%;height:auto;aspect-ratio:16/11}
+.cap{position:absolute;left:10px;font-family:var(--f-mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:color-mix(in srgb,var(--surface) 80%,transparent);padding:2px 6px;border-radius:4px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:var(--muted);padding:8px 10px;border-top:1px solid var(--line);background:var(--surface)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.side{display:grid;gap:12px;align-content:start}
+.meter{display:grid;gap:6px}
+.meter .bar{height:12px;border-radius:6px;background:var(--line);overflow:hidden}
+.meter .bar b{display:block;height:100%;border-radius:6px;transition:width .25s,background .25s}
+.meter .row{display:flex;justify-content:space-between;font-size:.85rem}
+.explain{font-size:.95rem}
+.plan{border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:8px;background:var(--surface)}
+.plan .date{font-family:var(--f-display);font-weight:800;font-size:1.35rem}
+.plan .alt{font-size:.88rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+
+/* sections */
+section{display:grid;gap:18px}
+.sec-head{display:grid;gap:6px;max-width:70ch}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;counter-reset:s}
+@media (max-width:760px){.steps{grid-template-columns:1fr}}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:8px;align-content:start}
+.step .k{font-family:var(--f-mono);font-size:.72rem;color:var(--cure);font-weight:700;letter-spacing:.08em}
+.step svg{width:100%;height:auto;max-width:100%}
+.step p{font-size:.95rem}
+.chem{font-family:var(--f-mono);font-size:.82rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;overflow-x:auto;white-space:nowrap}
+
+.ev-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+@media (max-width:860px){.ev-grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:12px;align-content:start;min-width:0}
+.plot{overflow-x:auto}
+.plot svg{display:block;min-width:520px;width:100%;height:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:var(--f-mono)}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl{overflow-x:auto}
+
+.reco{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:700px){.reco{grid-template-columns:1fr}}
+.reco .panel{border-left:4px solid var(--cure)}
+.reco ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:.95rem}
+.refs ol{margin:0;padding-left:20px;display:grid;gap:8px;font-size:.88rem}
+.refs a{color:var(--cure)}
+footer{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:baseline;justify-content:space-between;border-top:1px solid var(--line);padding-top:18px;font-size:.92rem}
+.team{display:flex;flex-wrap:wrap;gap:6px 16px}
+.disclaimer{font-size:.82rem;color:var(--muted);max-width:80ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="head-top"><span class="tag">RETO 4.3</span><span class="eyebrow">Feria de la Innovación y la Creatividad · UNICOC · 5 nov 2026</span></div>
+    <h1>Cronómetro adhesivo</h1>
+    <p class="lede">Después del blanqueamiento quedan <strong>especies de oxígeno residuales</strong> en esmalte y dentina que inhiben la polimerización del adhesivo. Ingrese la fecha de la última sesión y mueva la línea de tiempo para ver qué pasa en la interfaz y cuándo es seguro restaurar.</p>
+  </header>
+
+  <!-- INSTRUMENT -->
+  <div class="instrument" aria-label="Cronómetro adhesivo interactivo">
+    <form class="controls" id="form" onsubmit="return false">
+      <div class="field">
+        <label for="lastDate">Última sesión de blanqueamiento</label>
+        <input type="date" id="lastDate">
+        <span class="note" id="exampleNote">Fecha de ejemplo. Cámbiela por la de su paciente.</span>
+      </div>
+      <div class="field">
+        <span class="lbl">Protocolo</span>
+        <div class="seg">
+          <input type="radio" name="proto" id="p-office" value="office" checked><label for="p-office">Consultorio<small>PH 35–40 %</small></label>
+          <input type="radio" name="proto" id="p-home" value="home"><label for="p-home">Domiciliario<small>PC 10–22 %</small></label>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Sustrato a adherir</span>
+        <div class="seg">
+          <input type="radio" name="sub" id="s-enamel" value="enamel" checked><label for="s-enamel">Esmalte<small>carillas, resinas cl. IV</small></label>
+          <input type="radio" name="sub" id="s-dentin" value="dentin"><label for="s-dentin">Dentina expuesta<small>cavidades, cervicales</small></label>
+        </div>
+      </div>
+      <label class="switch"><input type="checkbox" id="antiox"><span><b>Usaré antioxidante</b> (ascorbato de sodio 10 %) antes del protocolo adhesivo</span></label>
+      <p class="note">Las reglas de espera de esta herramienta resumen la evidencia revisada por el grupo (ver abajo). No reemplazan el criterio clínico.</p>
+    </form>
+
+    <div class="readout">
+      <div class="status-row">
+        <div class="daybig"><span class="n" id="dayN">6</span><span class="u">días<br>post-blanqueamiento</span></div>
+        <span class="chip warn" id="chip">Adhesión comprometida</span>
+      </div>
+
+      <div class="scrub">
+        <div class="track-wrap">
+          <div class="bands" id="bands" aria-hidden="true"></div>
+          <label for="day" class="note" style="position:absolute;width:1px;height:1px;overflow:hidden">Día después del blanqueamiento</label>
+          <input type="range" id="day" min="0" max="28" step="1" value="6">
+          <div class="ticks" id="ticks" aria-hidden="true"></div>
+        </div>
+        <div class="playrow">
+          <button type="button" class="primary" id="play">▶ Reproducir 0 → 21 días</button>
+          <button type="button" id="today">Volver a hoy</button>
+          <span class="note" id="scrubNote"></span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="canvas-box">
+          <div style="position:relative">
+          <span class="cap" style="top:8px">Adhesivo / capa híbrida</span>
+          <span class="cap" style="bottom:8px" id="subCap">Esmalte (prismas)</span>
+          <canvas id="cv" width="640" height="440" role="img" aria-label="Corte esquemático de la interfaz esmalte-adhesivo con oxígeno residual"></canvas>
+          </div>
+          <div class="legend"><span><i style="background:var(--ox)"></i>O₂ / ROS residual</span><span><i style="background:var(--cure)"></i>Cadena polimerizada</span><span><i style="background:var(--muted)"></i>Monómero sin convertir</span><span>Esquema ilustrativo</span></div>
+        </div>
+        <div class="side">
+          <div class="meter">
+            <div class="row"><b>Oxígeno residual</b><span class="mono" id="oxTxt">—</span></div>
+            <div class="bar"><b id="oxBar"></b></div>
+          </div>
+          <div class="meter">
+            <div class="row"><b>Polimerización en la interfaz</b><span class="mono" id="polTxt">—</span></div>
+            <div class="bar"><b id="polBar"></b></div>
+          </div>
+          <p class="explain" id="explain"></p>
+          <p class="note">Barras cualitativas, construidas a partir de los tamaños de efecto de Savian et al. 2021. No son valores de MPa.</p>
+        </div>
+      </div>
+
+      <div class="plan" aria-live="polite">
+        <span class="eyebrow">Plan para este paciente</span>
+        <span class="date" id="planDate">—</span>
+        <span id="planWhy"></span>
+        <span class="alt" id="planAlt"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MECHANISM -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Mecanismo</span>
+      <h2>¿Por qué disminuye la adhesión?</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="k">PASO 1 · BLANQUEAMIENTO</span>
+        <svg viewBox="0 0 220 110" aria-hidden="true">
+          <rect x="0" y="0" width="220" height="110" fill="var(--bg)"/>
+          <rect x="0" y="40" width="220" height="70" fill="var(--enamel)"/>
+          <g fill="var(--enamel-2)"><rect x="12" y="40" width="10" height="70"/><rect x="38" y="40" width="10" height="70"/><rect x="64" y="40" width="10" height="70"/><rect x="90" y="40" width="10" height="70"/><rect x="116" y="40" width="10" height="70"/><rect x="142" y="40" width="10" height="70"/><rect x="168" y="40" width="10" height="70"/><rect x="194" y="40" width="10" height="70"/></g>
+          <rect x="0" y="22" width="220" height="18" fill="var(--cure-soft)"/>
+          <text x="8" y="35" font-size="11" font-family="JetBrains Mono, monospace" fill="var(--cure)">H₂O₂ gel</text>
+          <g stroke="var(--ox)" stroke-width="1.5" fill="none" marker-end="url(#ah)"><path d="M30 38 v28"/><path d="M80 38 v44"/><path d="M130 38 v36"/><path d="M180 38 v52"/></g>
+          <defs><marker id="ah" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L6 3 L0 6z" fill="var(--ox)"/></marker></defs>
+        </svg>
+        <p>El peróxido (de hidrógeno o de carbamida) difunde por el esmalte hacia la dentina y oxida los pigmentos.</p>
+        <div class="chem">2 H₂O₂ → 2 H₂O + O₂ · HO• · HO₂•</div>
+      </div>
+      <div class="step">
+        <span class="k">PASO 2 · OXÍGENO RESIDUAL</span>
+        <svg viewBox="0 0 220 110" aria-hidden="true">
+          <rect x="0" y="0" width="220" height="110" fill="var(--bg)"/>
+          <rect x="0" y="30" width="220" height="80" fill="var(--enamel)"/>
+          <g fill="var(--enamel-2)"><rect x="12" y="30" width="10" height="80"/><rect x="38" y="30" width="10" height="80"/><rect x="64" y="30" width="10" height="80"/><rect x="90" y="30" width="10" height="80"/><rect x="116" y="30" width="10" height="80"/><rect x="142" y="30" width="10" height="80"/><rect x="168" y="30" width="10" height="80"/><rect x="194" y="30" width="10" height="80"/></g>
+          <g fill="var(--ox)"><circle cx="28" cy="48" r="4"/><circle cx="56" cy="70" r="3.5"/><circle cx="84" cy="44" r="4"/><circle cx="108" cy="88" r="3.5"/><circle cx="132" cy="58" r="4"/><circle cx="160" cy="80" r="3.5"/><circle cx="186" cy="50" r="4"/><circle cx="210" cy="96" r="3.5"/><circle cx="34" cy="96" r="3"/><circle cx="150" cy="38" r="3"/></g>
+        </svg>
+        <p>Parte del oxígeno y de los radicales queda atrapada en los poros del esmalte y en los túbulos dentinarios. Se libera lentamente durante días.</p>
+      </div>
+      <div class="step">
+        <span class="k">PASO 3 · INTERFERENCIA</span>
+        <svg viewBox="0 0 220 110" aria-hidden="true">
+          <rect x="0" y="0" width="220" height="110" fill="var(--bg)"/>
+          <rect x="0" y="0" width="220" height="44" fill="var(--resin)" opacity=".55"/>
+          <rect x="0" y="44" width="220" height="66" fill="var(--enamel)"/>
+          <g fill="none" stroke="var(--cure)" stroke-width="2.5" stroke-linecap="round"><path d="M14 16 L34 24 L54 14 L74 22"/></g>
+          <g fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3 4" stroke-linecap="round"><path d="M96 22 L118 14 L140 24 L162 16 L186 24 L206 16"/></g>
+          <g fill="var(--resin)"><rect x="20" y="44" width="6" height="22"/><rect x="50" y="44" width="6" height="26"/><rect x="104" y="44" width="6" height="8"/><rect x="150" y="44" width="6" height="6"/><rect x="190" y="44" width="6" height="9"/></g>
+          <g fill="var(--ox)"><circle cx="86" cy="22" r="4"/><circle cx="128" cy="40" r="3.5"/><circle cx="174" cy="36" r="4"/><circle cx="140" cy="70" r="3.5"/></g>
+        </svg>
+        <p>El O₂ captura los radicales que propagan la cadena del monómero y forma radicales peroxilo poco reactivos. Resultado: menor conversión, menos tags de resina y menor resistencia de unión.</p>
+        <div class="chem">R• + O₂ → ROO• (detiene la propagación)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EVIDENCE -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Evidencia científica</span>
+      <h2>¿Cuánto se recupera la unión con el tiempo?</h2>
+      <p class="muted">Metaanálisis de estudios in vitro: diferencia de medias estandarizada (DME) de la resistencia de unión en dientes blanqueados frente a no blanqueados. Valores negativos indican menor unión; si el intervalo cruza el 0, la diferencia no es significativa.</p>
+    </div>
+    <div class="ev-grid">
+      <div class="panel">
+        <h3>Savian et al., 2021 · Operative Dentistry</h3>
+        <div class="plot"><svg id="forest" viewBox="0 0 560 250" role="img" aria-label="Gráfico de bosque del efecto del blanqueamiento sobre la resistencia de unión según el tiempo de espera"></svg></div>
+        <p class="note">* A 2 semanas el artículo reporta el intervalo de forma inconsistente (resultados: −0,84 a −0,07; resumen: p = 0,10, no significativo). Se dibuja con línea punteada.</p>
+      </div>
+      <div class="panel">
+        <h3>Hallazgos clave</h3>
+        <div class="tbl"><table>
+          <thead><tr><th>Estudio</th><th>Hallazgo</th></tr></thead>
+          <tbody>
+            <tr><td>Savian 2021<br><span class="muted">RS + MA in vitro</span></td><td>Reducción marcada inmediata y a 24 h; aún significativa a 1 semana; sin diferencia significativa a 2–3 semanas. Recomiendan esperar al menos 2 semanas.</td></tr>
+            <tr><td>Cavalli 2001<br><span class="muted">in vitro, PC 10–20 %</span></td><td>La unión al esmalte se recuperó tras 2–3 semanas de espera.</td></tr>
+            <tr><td>Lai 2002<br><span class="muted">in vitro, J Dent Res</span></td><td>El ascorbato de sodio 10 % revirtió la unión comprometida en esmalte blanqueado.</td></tr>
+            <tr><td>Olmedo 2021<br><span class="muted">revisión</span></td><td>El AS 10 % es el antioxidante más estudiado y eficaz; el resultado depende del tiempo de aplicación y del adhesivo.</td></tr>
+            <tr><td>Lopes 2023<br><span class="muted">in vitro, cemento resinoso</span></td><td>Control 19,16 MPa · 7 días sin AS 18,02 · 24 h con AS 16,96–17,52 · sin diferencias significativas.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECOMMENDATIONS -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Aplicación clínica</span>
+      <h2>Recomendaciones del grupo</h2>
+    </div>
+    <div class="reco">
+      <div class="panel">
+        <h3>Regla de espera</h3>
+        <ul>
+          <li><b>14 días</b> como mínimo antes de cualquier restauración adhesiva en esmalte.</li>
+          <li><b>21 días</b> si el blanqueamiento fue en consultorio (alta concentración) o si se adhiere sobre dentina expuesta.</li>
+          <li>La espera también permite que el color se estabilice antes de seleccionar el tono de la restauración.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Si no se puede esperar</h3>
+        <ul>
+          <li>Aplicar <b>ascorbato de sodio al 10 %</b> sobre el sustrato blanqueado, lavar y luego seguir el protocolo adhesivo.</li>
+          <li>El tiempo de aplicación varía entre estudios; la evidencia es principalmente in vitro.</li>
+          <li>Individualizar según protocolo de blanqueamiento, sustrato y sistema adhesivo.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="refs">
+    <div class="sec-head"><span class="eyebrow">Referencias</span></div>
+    <ol>
+      <li>Savian TG, Oling J, Soares FZM, Rocha RO. Vital bleaching influences the bond strength of adhesive systems to enamel and dentin: a systematic review and meta-analysis of in vitro studies. <i>Oper Dent</i>. 2021;46(2):E80–E97. <a href="https://doi.org/10.2341/20-035-LIT" target="_blank" rel="noopener">doi:10.2341/20-035-LIT</a></li>
+      <li>Olmedo DER, Kury M, Resende BA, Cavalli V. Use of antioxidants to restore bond strength after tooth bleaching with peroxides. <i>Eur J Oral Sci</i>. 2021;129(2):e12773. <a href="https://doi.org/10.1111/eos.12773" target="_blank" rel="noopener">doi:10.1111/eos.12773</a></li>
+      <li>Lopes ALC, Ribeiro MES, Barbosa JHP, da Rocha MPC, Silva e Souza Júnior MH, Loretto SC. Does the elapsed time from bleaching and the use of sodium ascorbate influence the bond strength of resin cement to bleached enamel? <i>Materials</i>. 2023;16(18):6328. <a href="https://doi.org/10.3390/ma16186328" target="_blank" rel="noopener">doi:10.3390/ma16186328</a></li>
+      <li>Cavalli V, Reis AF, Giannini M, Ambrosano GMB. The effect of elapsed time following bleaching on enamel bond strength of resin composite. <i>Oper Dent</i>. 2001;26(6):597–602.</li>
+      <li>Lai SCN, Tay FR, Cheung GSP, et al. Reversal of compromised bonding in bleached enamel. <i>J Dent Res</i>. 2002;81(7):477–481.</li>
+    </ol>
+  </section>
+
+  <footer>
+    <div><span class="eyebrow">Integrantes</span>
+      <div class="team"><span>Yesika Vivian Rodríguez</span><span>Yhurlyth Oviedo</span><span>Ana Carolina Trejos</span><span>César Espitia</span><span>Hugo Sánchez</span></div>
+    </div>
+    <p class="disclaimer">Herramienta educativa basada en evidencia mayoritariamente in vitro. No sustituye el juicio clínico ni las instrucciones del fabricante.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  let cssCache = {};
+  const css = n => cssCache[n] ?? (cssCache[n] = getComputedStyle(document.documentElement).getPropertyValue(n).trim());
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{cssCache={};});
+  new MutationObserver(()=>{cssCache={};}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  const DAY = 86400000;
+  const MAXD = 28;
+
+  // Sample date: 6 days ago
+  const today = new Date(); today.setHours(0,0,0,0);
+  const iso = d => { const z = new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); };
+  const sample = new Date(today.getTime()-6*DAY);
+  $('lastDate').value = iso(sample);
+
+  const fmt = d => d.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  function cfg(){
+    const proto = document.querySelector('input[name=proto]:checked').value;
+    const sub = document.querySelector('input[name=sub]:checked').value;
+    const antiox = $('antiox').checked;
+    const wait = (proto==='office' || sub==='dentin') ? 21 : 14;
+    return {proto, sub, antiox, wait};
+  }
+  function lastDate(){
+    const v = $('lastDate').value; if(!v) return null;
+    const [y,m,d] = v.split('-').map(Number); return new Date(y,m-1,d);
+  }
+  function elapsed(){
+    const ld = lastDate(); if(!ld) return 0;
+    return Math.round((today-ld)/DAY);
+  }
+
+  // Phase model (from Savian 2021 time subgroups)
+  function phase(d, wait){
+    if(d<=1) return {cls:'crit', name:'Adhesión crítica', txt:'Mayor concentración de oxígeno residual. En el metaanálisis, la unión inmediata y a 24 h es claramente menor (DME −2,03). No adherir.'};
+    if(d<=7) return {cls:'warn', name:'Adhesión comprometida', txt:'El oxígeno se está liberando, pero a 1 semana la unión todavía es significativamente menor (DME −0,64).'};
+    if(d<14) return {cls:'mid', name:'En recuperación', txt:'La unión se acerca a la de dientes no blanqueados. Aún no se alcanza la ventana mínima recomendada de 14 días.'};
+    if(d<wait) return {cls:'mid', name:'Ventana mínima alcanzada', txt:'Desde 2 semanas la diferencia deja de ser significativa. Para este caso (consultorio o dentina) el grupo recomienda completar 21 días.'};
+    return {cls:'ok', name:'Ventana adhesiva óptima', txt:'Sin diferencia significativa frente a dientes no blanqueados (2–3 semanas). Color estabilizado. Puede restaurar.'};
+  }
+  // Illustrative residual oxygen curve (normalized), slower for office/dentin
+  function oxLevel(d, c){
+    const tau = (c.proto==='office'?4.2:3.2) * (c.sub==='dentin'?1.25:1);
+    let v = Math.exp(-d/tau);
+    return v;
+  }
+
+  // Bands + ticks
+  function drawBands(){
+    const c = cfg(); const b = $('bands'); b.innerHTML='';
+    const segs = [[0,2,'--crit'],[2,8,'--warn'],[8,14,'--cure'],[14,c.wait,'--cure'],[c.wait,MAXD+1,'--ok']];
+    segs.forEach(([a,z,col],i)=>{ if(z<=a) return; const s=document.createElement('span'); s.style.width=((z-a)/(MAXD+1)*100)+'%'; s.style.background=`var(${col})`; s.style.opacity = (i===3?'.55':(i===2?'.35':'1')); b.appendChild(s); });
+    const t = $('ticks'); t.innerHTML='';
+    [0,7,14,21,28].forEach(v=>{ const s=document.createElement('span'); s.textContent = v===0?'Día 0':v; s.style.left = ((v+.5)/(MAXD+1)*100)+'%'; t.appendChild(s); });
+  }
+
+  // Canvas scene
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  // deterministic pseudo-random
+  let seed = 7; const rnd = () => (seed = (seed*16807)%2147483647)/2147483647;
+  const particles = Array.from({length:70},()=>({x:rnd()*W, y:150+rnd()*(H-170), r:3+rnd()*3.5, k:rnd(), ph:rnd()*6.28}));
+  const monomers = Array.from({length:44},(_,i)=>({x:16+i*(W-32)/43, y:62+((i%3)-1)*14 + (rnd()-.5)*10, k:rnd()}));
+  const prismW = 26, prismGap = 18;
+
+  let t0 = performance.now(), curDay = 6;
+  function draw(now){
+    const c = cfg(); const ox = oxLevel(curDay,c); const pol = 1-ox*0.85;
+    ctx.clearRect(0,0,W,H);
+    // adhesive layer
+    ctx.fillStyle = css('--resin'); ctx.globalAlpha=.45; ctx.fillRect(0,0,W,128); ctx.globalAlpha=1;
+    // substrate
+    ctx.fillStyle = css(c.sub==='dentin'?'--enamel-2':'--enamel'); ctx.fillRect(0,128,W,H-128);
+    if(c.sub==='enamel'){
+      ctx.fillStyle = css('--enamel-2');
+      for(let x=8;x<W;x+=prismW+prismGap){ ctx.fillRect(x,128,prismW,H-128); }
+    } else {
+      ctx.fillStyle = css('--enamel');
+      for(let x=20;x<W;x+=44){ ctx.beginPath(); ctx.ellipse(x,128+ (H-128)/2, 7, (H-128)/2-6,0,0,6.29); ctx.fill(); }
+    }
+    // resin tags — length grows with polymerization
+    ctx.fillStyle = css('--cure'); ctx.globalAlpha=.6;
+    const step = c.sub==='enamel' ? prismW+prismGap : 44;
+    const start = c.sub==='enamel' ? 8+prismW+2 : 16;
+    for(let x=start, i=0; x<W; x+=step, i++){
+      const L = 8 + pol*90*(0.75+0.25*Math.sin(i*1.7));
+      ctx.fillRect(x, 128, c.sub==='enamel'?12:8, L);
+    }
+    ctx.globalAlpha=1;
+    // interface line
+    ctx.strokeStyle = css('--line'); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,128); ctx.lineTo(W,128); ctx.stroke();
+    // polymer chain
+    const tt = (now-t0)/1000;
+    for(let i=0;i<monomers.length-1;i++){
+      const a=monomers[i], b=monomers[i+1];
+      const linked = a.k < pol;
+      ctx.strokeStyle = css(linked?'--cure':'--muted');
+      ctx.lineWidth = linked?4:2; ctx.setLineDash(linked?[]:[4,6]); ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    monomers.forEach(m=>{ ctx.fillStyle = css(m.k<pol?'--cure':'--muted'); ctx.beginPath(); ctx.arc(m.x,m.y,4.5,0,6.29); ctx.fill(); });
+    // oxygen particles
+    const show = ox;
+    particles.forEach((p,i)=>{
+      if(p.k > show) return;
+      const drift = Math.sin(tt*1.2+p.ph)*3;
+      // some particles migrate to interface/adhesive when level high
+      let y = p.y + drift;
+      if(i%5===0) y = 40 + (p.y%80) + drift;
+      ctx.fillStyle = css('--ox'); ctx.globalAlpha=.85;
+      ctx.beginPath(); ctx.arc(p.x, y, p.r, 0, 6.29); ctx.fill();
+      ctx.globalAlpha=1;
+      if(p.r>5.5){ ctx.fillStyle=css('--surface'); ctx.font='bold 8px JetBrains Mono, monospace'; ctx.textAlign='center'; ctx.fillText('O₂',p.x,y+3); }
+    });
+    if(!reduce) requestAnimationFrame(draw);
+  }
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function update(){
+    const c = cfg();
+    curDay = +$('day').value;
+    const real = elapsed();
+    $('subCap').textContent = c.sub==='dentin' ? 'Dentina (túbulos)' : 'Esmalte (prismas)';
+    $('dayN').textContent = curDay;
+    const ph = phase(curDay, c.wait);
+    const chip = $('chip'); chip.className = 'chip '+ph.cls; chip.textContent = ph.name;
+    $('explain').textContent = ph.txt;
+    const ox = oxLevel(curDay,c); const pol = 1-ox*0.85;
+    $('oxBar').style.width = (ox*100)+'%'; $('oxBar').style.background = 'var(--ox)';
+    $('oxTxt').textContent = ox>.6?'alto':ox>.25?'moderado':ox>.06?'bajo':'mínimo';
+    $('polBar').style.width = (pol*100)+'%'; $('polBar').style.background = pol>.93?'var(--ok)':pol>.7?'var(--cure)':'var(--warn)';
+    $('polTxt').textContent = pol>.93?'óptima':pol>.7?'parcial':'inhibida';
+    $('scrubNote').textContent = curDay===real ? 'Mostrando hoy para este paciente' : (curDay>real?`Explorando el día ${curDay} (en ${curDay-real} días)`:`Explorando el día ${curDay}`);
+
+    // plan
+    const ld = lastDate();
+    if(ld){
+      const target = new Date(ld.getTime()+c.wait*DAY);
+      const left = Math.round((target-today)/DAY);
+      $('planDate').textContent = left<=0 ? 'Puede restaurar desde hoy' : `Restaurar desde el ${fmt(target)}`;
+      const why = `${c.proto==='office'?'Blanqueamiento en consultorio':'Blanqueamiento domiciliario'} · ${c.sub==='dentin'?'dentina expuesta':'esmalte'} → espera de ${c.wait} días.`;
+      $('planWhy').textContent = left>0 ? `${why} Faltan ${left} ${left===1?'día':'días'}.` : `${why} Han pasado ${real} días.`;
+      $('planAlt').textContent = c.antiox
+        ? 'Con ascorbato de sodio 10 %: en estudios in vitro la unión se recuperó desde las 24 h (Lopes 2023; Lai 2002). Es una alternativa cuando no se puede esperar; la espera sigue siendo la opción con más respaldo.'
+        : 'Si la restauración no puede esperar, active la opción de antioxidante para ver la alternativa.';
+    } else {
+      $('planDate').textContent = 'Ingrese la fecha de la última sesión'; $('planWhy').textContent=''; $('planAlt').textContent='';
+    }
+    if(reduce) draw(performance.now());
+  }
+
+  function syncToToday(){ const r = Math.max(0,Math.min(MAXD,elapsed())); $('day').value = r; update(); }
+
+  $('lastDate').addEventListener('input',()=>{ $('exampleNote').textContent = 'Fecha ingresada.'; syncToToday(); });
+  document.querySelectorAll('input[name=proto],input[name=sub],#antiox').forEach(el=>el.addEventListener('change',()=>{drawBands();update();}));
+  $('day').addEventListener('input',()=>{ stopPlay(); update(); });
+  $('today').addEventListener('click',()=>{ stopPlay(); syncToToday(); });
+
+  let timer=null;
+  function stopPlay(){ if(timer){clearInterval(timer);timer=null;$('play').textContent='▶ Reproducir 0 → 21 días';} }
+  $('play').addEventListener('click',()=>{
+    if(timer){stopPlay();return;}
+    let d=0; $('day').value=0; update(); $('play').textContent='❚❚ Pausar';
+    timer=setInterval(()=>{ d++; $('day').value=d; update(); if(d>=21) stopPlay(); }, 450);
+  });
+
+  // Forest plot
+  function forest(){
+    const svg = $('forest');
+    const rows = [
+      {lab:'Inmediato – 24 h', m:-2.03, lo:-2.40, hi:-1.67, sig:true},
+      {lab:'1 semana', m:-0.64, lo:-0.97, hi:-0.32, sig:true},
+      {lab:'2 semanas*', m:-0.39, lo:-0.84, hi:-0.07, sig:false, dash:true},
+      {lab:'3 semanas', m:-0.99, lo:-2.45, hi:0.47, sig:false},
+    ];
+    const x0=150, x1=530, min=-2.75, max=0.75;
+    const X = v => x0 + (v-min)/(max-min)*(x1-x0);
+    const ink = 'var(--ink)', mut='var(--muted)';
+    let s = '';
+    // grid & ticks
+    [-2.5,-2,-1.5,-1,-0.5,0,0.5].forEach(v=>{
+      s+=`<line x1="${X(v)}" x2="${X(v)}" y1="20" y2="200" stroke="var(--line)" ${v===0?'stroke-width="2" stroke="var(--muted)"':''}/>`;
+      s+=`<text x="${X(v)}" y="218" font-size="11" text-anchor="middle" fill="${mut}" font-family="JetBrains Mono, monospace">${String(v).replace('.',',')}</text>`;
+    });
+    s+=`<text x="${X(-1.2)}" y="242" font-size="11" text-anchor="middle" fill="${mut}" font-family="Source Sans 3, sans-serif">← menor unión en dientes blanqueados</text>`;
+    s+=`<text x="${X(0.05)}" y="242" font-size="11" fill="${mut}" font-family="Source Sans 3, sans-serif">sin diferencia</text>`;
+    rows.forEach((r,i)=>{
+      const y = 45 + i*45;
+      const col = r.sig ? 'var(--crit)' : 'var(--ok)';
+      s+=`<text x="0" y="${y+4}" font-size="13" fill="${ink}" font-family="Source Sans 3, sans-serif" font-weight="600">${r.lab}</text>`;
+      s+=`<line x1="${X(r.lo)}" x2="${X(r.hi)}" y1="${y}" y2="${y}" stroke="${col}" stroke-width="2.5" ${r.dash?'stroke-dasharray="5 4"':''}/>`;
+      s+=`<rect x="${X(r.m)-6}" y="${y-6}" width="12" height="12" fill="${col}"/>`;
+      s+=`<text x="${X(r.m)}" y="${y-12}" font-size="11" text-anchor="middle" fill="${mut}" font-family="JetBrains Mono, monospace">${String(r.m).replace('.',',')}</text>`;
+    });
+    svg.innerHTML = s;
+  }
+
+  drawBands(); forest(); syncToToday();
+  if(!reduce) requestAnimationFrame(draw); else draw(performance.now());
+})();
+</script>
+</body>
+</html>
